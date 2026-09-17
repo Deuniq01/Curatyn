@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     # --- AI --------------------------------------------------------------
     ai_backend: str = "mock"  # "mock" | "gemini" | "ollama"
     google_api_key: str = ""  # Gemini API key from Google AI Studio (aistudio.google.com)
-    gemini_model: str = "gemini-2.0-flash"          # used by complete()
-    gemini_embed_model: str = "text-embedding-004"  # 768-dim, matches models.EMBEDDING_DIM
+    gemini_model: str = "gemini-2.5-flash"          # used by complete()
+    gemini_embed_model: str = "gemini-embedding-001"  # request 768 dims in app/ai_client.py
 
     # --- Email -----------------------------------------------------------
     email_backend: str = "mock"  # "mock" | "live" — mock never calls Gmail/Graph, records sends in memory/db only

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, BriefcaseBusiness, FileText, LogOut, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, BriefcaseBusiness, FileText, LogOut, Menu, Sparkles, X } from "lucide-react";
 
 const navItems = [
   { href: "/cvs", label: "CV vault", icon: FileText },
@@ -13,6 +14,7 @@ const navItems = [
 
 export default function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const isPublic = pathname === "/" || pathname === "/login" || pathname === "/signup" || pathname === "/privacy" || pathname === "/terms";
   if (isPublic) return <>{children}</>;
 
@@ -34,7 +36,8 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
         <Link href="/" className="sidebar-logout"><LogOut size={16} aria-hidden="true" /> Exit workspace</Link>
       </aside>
       <div className="app-content">
-        <header className="mobile-header"><Link href="/cvs" className="workspace-logo mobile-logo"><Image src="/logo.png" alt="Curatyn" width={118} height={60} /></Link><Link href="/apply" className="mobile-action"><Sparkles size={15} aria-hidden="true" /> New apply</Link></header>
+        <header className="mobile-header"><Link href="/cvs" className="workspace-logo mobile-logo"><Image src="/logo.png" alt="Curatyn" width={118} height={60} /></Link><div className="mobile-actions"><Link href="/apply" className="mobile-action"><Sparkles size={15} aria-hidden="true" /> New apply</Link><button type="button" className="mobile-menu-button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button></div></header>
+        {menuOpen && <nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile navigation">{navItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={pathname.startsWith(href) ? "is-active" : ""} onClick={() => setMenuOpen(false)}><Icon size={17} aria-hidden="true" /><span>{label}</span>{pathname.startsWith(href) && <ArrowUpRight size={15} aria-hidden="true" />}</Link>)}<Link href="/" onClick={() => setMenuOpen(false)}><LogOut size={17} aria-hidden="true" /><span>Exit workspace</span></Link></nav>}
         {children}
       </div>
     </div>

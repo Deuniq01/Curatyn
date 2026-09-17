@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from app.models import JobDescription, User
 from app.schemas import JDTextRequest
 
 router = APIRouter(prefix="/api/job-descriptions", tags=["job-descriptions"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("")
@@ -24,7 +26,11 @@ async def submit_job_description_text(
 
     # Synchronous for MVP simplicity — see 08-execution-plan.md Phase 11 for
     # moving this to a background worker once latency matters.
-    structured = await extract_job_description(session, jd.id)
+    try:
+        structured = await extract_job_description(session, jd.id)
+    except Exception as exc:
+        logger.exception("Job description analysis failed")
+        raise HTTPException(status_code=502, detail="Job analysis is unavailable. Check the Gemini configuration and try again.") from exc
 
     return {"id": jd.id, "structured": structured}
 

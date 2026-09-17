@@ -27,7 +27,15 @@ async function request(path: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("Could not reach Curatyn's server. Please try again in a moment.");
+    }
+    throw error;
+  }
   if (!response.ok) {
     const detail = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(detail.detail || `Request to ${path} failed with ${response.status}`);

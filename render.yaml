@@ -22,9 +22,9 @@ services:
       - key: STORAGE_BACKEND
         value: supabase
       - key: GEMINI_MODEL
-        value: gemini-2.0-flash
+        value: gemini-2.5-flash
       - key: GEMINI_EMBED_MODEL
-        value: text-embedding-004
+        value: gemini-embedding-001
       - key: STORAGE_BUCKET
         value: cvs
       - key: PYTHON_VERSION
@@ -44,8 +44,8 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: GOOGLE_REDIRECT_URI       # https://<this-service>.onrender.com/api/auth/oauth/gmail/callback
-        sync: false
+      - key: GOOGLE_REDIRECT_URI       # Must exactly match the URI registered in Google Cloud Console.
+        value: https://curatyn-backend.onrender.com/api/auth/oauth/gmail/callback
       - key: SUPABASE_URL              # https://<ref>.supabase.co
         sync: false
       - key: SUPABASE_SERVICE_KEY      # Supabase service_role key

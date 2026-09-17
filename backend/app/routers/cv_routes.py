@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from app.models import CV, User
 from app.storage import save_file
 
 router = APIRouter(prefix="/api/cvs", tags=["cvs"])
+logger = logging.getLogger(__name__)
 
 
 def _extract_pdf_text(content: bytes) -> str:
@@ -42,9 +44,17 @@ async def upload_cv(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-    file_url = await save_file(content, file.filename or "cv.pdf")
+    try:
+        file_url = await save_file(content, file.filename or "cv.pdf")
+    except Exception as exc:
+        logger.exception("CV storage upload failed")
+        raise HTTPException(status_code=502, detail="CV storage is unavailable. Check the Supabase storage configuration.") from exc
     raw_text = _extract_pdf_text(content)
-    embedding = await ai_client.embed(raw_text)
+    try:
+        embedding = await ai_client.embed(raw_text)
+    except Exception as exc:
+        logger.exception("CV embedding generation failed")
+        raise HTTPException(status_code=502, detail="CV processing is unavailable. Check the AI embedding configuration.") from exc
 
     cv = CV(user_id=user.id, label=label, file_url=file_url, raw_text=raw_text, embedding=embedding)
     session.add(cv)

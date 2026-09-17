@@ -108,6 +108,7 @@ async def _gemini_embed(text: str) -> list[float]:
     body = {
         "model": f"models/{settings.gemini_embed_model}",
         "content": {"parts": [{"text": text or "empty"}]},
+        "outputDimensionality": EMBEDDING_DIM,
     }
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
