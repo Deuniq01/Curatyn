@@ -121,7 +121,6 @@ async def oauth_start(provider: str, user: User = Depends(get_current_user)):
             "scope": GOOGLE_SCOPES,
             "access_type": "offline",   # required to receive a refresh token
             "prompt": "consent",        # force a refresh token every time
-            "include_granted_scopes": "true",
             "state": state,
         }
         return {"authUrl": f"{GOOGLE_AUTH_URL}?{urlencode(params)}"}
