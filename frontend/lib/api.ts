@@ -71,6 +71,12 @@ export const api = {
 
   submitJobDescription: (rawInput: string) =>
     request("/api/job-descriptions", { method: "POST", body: JSON.stringify({ rawInput }) }),
+  submitJobDescriptionCombined: (rawInput: string, file: File | null) => {
+    const form = new FormData();
+    if (rawInput.trim()) form.append("raw_input", rawInput);
+    if (file) form.append("file", file);
+    return request("/api/job-descriptions/combined", { method: "POST", body: form });
+  },
 
   createApplication: (jobDescriptionId: string) =>
     request("/api/applications", { method: "POST", body: JSON.stringify({ jobDescriptionId }) }),

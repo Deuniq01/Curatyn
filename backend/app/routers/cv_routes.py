@@ -48,13 +48,13 @@ async def upload_cv(
         file_url = await save_file(content, file.filename or "cv.pdf")
     except Exception as exc:
         logger.exception("CV storage upload failed")
-        raise HTTPException(status_code=502, detail="CV storage is unavailable. Check the Supabase storage configuration.") from exc
+        raise HTTPException(status_code=502, detail=f"CV storage upload failed: {type(exc).__name__}. Check the Supabase storage configuration.") from exc
     raw_text = _extract_pdf_text(content)
     try:
         embedding = await ai_client.embed(raw_text)
     except Exception as exc:
         logger.exception("CV embedding generation failed")
-        raise HTTPException(status_code=502, detail="CV processing is unavailable. Check the AI embedding configuration.") from exc
+        raise HTTPException(status_code=502, detail=f"CV processing failed: {type(exc).__name__}. Check the AI embedding configuration.") from exc
 
     cv = CV(user_id=user.id, label=label, file_url=file_url, raw_text=raw_text, embedding=embedding)
     session.add(cv)

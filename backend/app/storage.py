@@ -36,7 +36,10 @@ def _supabase_headers() -> dict:
         raise RuntimeError(
             "STORAGE_BACKEND=supabase but SUPABASE_URL / SUPABASE_SERVICE_KEY are not set."
         )
-    return {"Authorization": f"Bearer {settings.supabase_service_key}"}
+    return {
+        "Authorization": f"Bearer {settings.supabase_service_key}",
+        "apikey": settings.supabase_service_key,
+    }
 
 
 async def _supabase_save(content: bytes, key: str) -> str:

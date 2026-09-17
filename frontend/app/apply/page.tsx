@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Send } from "lucide-react";
+import { ImagePlus, Loader2, Send, Type } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function ApplyPage() {
   const router = useRouter();
   const [rawInput, setRawInput] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "analyzing" | "matching">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +17,7 @@ export default function ApplyPage() {
     setError(null);
     setStatus("analyzing");
     try {
-      const jd = await api.submitJobDescription(rawInput);
+      const jd = await api.submitJobDescriptionCombined(rawInput, imageFile);
       setStatus("matching");
       const application = await api.createApplication(jd.id);
       router.push(`/applications/${application.id}`);
@@ -33,17 +34,13 @@ export default function ApplyPage() {
       </p></div></div>
 
       <form onSubmit={handleSubmit} className="workspace-card">
-        <textarea
-          required
-          value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
-          placeholder="Paste the full job posting here..."
-          className="workspace-textarea"
-        />
+        <div className="combined-input-heading"><Type size={16} /> <span>Job description</span><small>Paste text, add a screenshot, or use both</small></div>
+        <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)} placeholder="Paste the full job posting here..." className="workspace-textarea" />
+        <label className="image-upload-zone"><ImagePlus size={26} /><strong>{imageFile ? imageFile.name : "Add a job posting screenshot"}</strong><span>Optional · PNG, JPEG, or WebP up to 10 MB</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setImageFile(e.target.files?.[0] || null)} /></label>
         {error && <p className="form-error mt-3">{error}</p>}
         <button
           type="submit"
-          disabled={status !== "idle" || !rawInput.trim()}
+          disabled={status !== "idle" || (!rawInput.trim() && !imageFile)}
           className="workspace-button mt-4 disabled:opacity-50"
         >
           {status === "idle" && (<><Send className="h-4 w-4" aria-hidden="true" /> Analyze & Match</>)}
