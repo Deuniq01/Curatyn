@@ -32,6 +32,8 @@ services:
       # --- Secrets & URLs you paste in the Render dashboard ---
       - key: DATABASE_URL              # Supabase Session-pooler URI, scheme postgresql+asyncpg://
         sync: false
+      - key: DATABASE_SSL_VERIFY      # Supabase pooler certificate chain is not trusted by Render's Python runtime
+        value: false
       - key: JWT_SECRET                # the rotated value from your local .env
         sync: false
       - key: CURATYN_TOKEN_ENCRYPTION_KEY  # the rotated Fernet value from your local .env
