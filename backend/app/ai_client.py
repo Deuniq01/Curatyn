@@ -18,6 +18,7 @@ in app/config.py) to call the real Gemini API instead. The complete() and
 embed() signatures do not need to change.
 """
 import hashlib
+import asyncio
 import json
 import re
 
@@ -27,6 +28,21 @@ from app.config import settings
 from app.models import EMBEDDING_DIM
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+_RETRYABLE_GEMINI_STATUSES = {429, 500, 502, 503, 504}
+
+
+async def gemini_post(url: str, api_key: str, body: dict, timeout: float) -> httpx.Response:
+    """Retry transient provider capacity/rate-limit failures, not config errors."""
+    delays = (1, 2, 4)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for attempt in range(len(delays) + 1):
+            response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
+            if response.status_code not in _RETRYABLE_GEMINI_STATUSES or attempt == len(delays):
+                return response
+            retry_after = response.headers.get("Retry-After")
+            delay = min(float(retry_after), 10) if retry_after else delays[attempt]
+            await asyncio.sleep(delay)
+    raise RuntimeError("Gemini request retry loop ended unexpectedly")
 
 
 class AIClient:
@@ -88,8 +104,7 @@ async def _gemini_complete(system: str, user: str) -> str:
         # Both Curatyn prompts demand strict JSON back; ask the model for it.
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
     }
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
+    response = await gemini_post(url, api_key, body, timeout=60)
     if response.status_code >= 400:
         raise RuntimeError(f"Gemini completion failed: {response.status_code} {response.text}")
 
@@ -110,8 +125,7 @@ async def _gemini_embed(text: str) -> list[float]:
         "content": {"parts": [{"text": text or "empty"}]},
         "outputDimensionality": EMBEDDING_DIM,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
+    response = await gemini_post(url, api_key, body, timeout=30)
     if response.status_code >= 400:
         raise RuntimeError(f"Gemini embedding failed: {response.status_code} {response.text}")
 

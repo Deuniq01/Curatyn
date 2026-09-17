@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # --- AI --------------------------------------------------------------
     ai_backend: str = "mock"  # "mock" | "gemini" | "ollama"
     google_api_key: str = ""  # Gemini API key from Google AI Studio (aistudio.google.com)
-    gemini_model: str = "gemini-3.6-flash"          # used by complete() and image transcription
+    gemini_model: str = "gemini-3.5-flash-lite"    # used by complete() and image transcription
     gemini_embed_model: str = "gemini-embedding-001"  # request 768 dims in app/ai_client.py
 
     # --- Email -----------------------------------------------------------

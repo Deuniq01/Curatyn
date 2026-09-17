@@ -3,7 +3,7 @@ import base64
 
 import httpx
 
-from app.ai_client import GEMINI_API_BASE
+from app.ai_client import GEMINI_API_BASE, gemini_post
 from app.config import settings
 
 
@@ -20,8 +20,7 @@ async def extract_text_from_image(content: bytes, mime_type: str) -> str:
             {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(content).decode("ascii")}},
         ]}],
     }
-    async with httpx.AsyncClient(timeout=90) as client:
-        response = await client.post(url, headers={"x-goog-api-key": settings.google_api_key}, json=body)
+    response = await gemini_post(url, settings.google_api_key, body, timeout=90)
     if response.status_code >= 400:
         raise RuntimeError(f"Gemini image transcription failed: {response.status_code} {response.text}")
     try:
