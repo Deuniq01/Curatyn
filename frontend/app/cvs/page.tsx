@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, Upload, FileText, ArrowRight, Mail } from "lucide-react";
+import { Eye, Trash2, Upload, FileText, ArrowRight, Mail } from "lucide-react";
 import { api } from "@/lib/api";
 
 type Cv = { id: string; label: string; createdAt: string };
@@ -152,13 +152,7 @@ export default function CvVaultPage() {
               <FileText className="h-4 w-4 text-neutral-400" aria-hidden="true" />
               {cv.label}
             </div>
-            <button
-              onClick={() => api.deleteCv(cv.id).then(load)}
-              aria-label={`Delete ${cv.label}`}
-              className="text-neutral-400 hover:text-red-600"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <div className="cv-actions"><button onClick={() => api.viewCv(cv.id).catch((e) => setError(e.message))} aria-label={`View ${cv.label}`} className="workspace-icon-button" title="View CV"><Eye className="h-4 w-4" aria-hidden="true" /></button><button onClick={() => api.deleteCv(cv.id).then(load)} aria-label={`Delete ${cv.label}`} className="workspace-icon-button workspace-icon-danger" title="Delete CV"><Trash2 className="h-4 w-4" aria-hidden="true" /></button></div>
           </div>
         ))}
       </div>

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,3 +73,22 @@ async def delete_cv(cv_id: str, user: User = Depends(get_current_user), session:
     await session.delete(cv)
     await session.commit()
     return {"deleted": True}
+
+
+@router.get("/{cv_id}/file")
+async def view_cv(cv_id: str, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(CV).where(CV.id == cv_id, CV.user_id == user.id))
+    cv = result.scalar_one_or_none()
+    if cv is None:
+        raise HTTPException(status_code=404, detail="CV not found")
+    try:
+        from app.storage import fetch_cv_pdf_bytes
+        content = await fetch_cv_pdf_bytes(cv.file_url)
+    except Exception as exc:
+        logger.exception("CV preview download failed")
+        raise HTTPException(status_code=502, detail="CV preview is unavailable.") from exc
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{cv.label}.pdf"'},
+    )

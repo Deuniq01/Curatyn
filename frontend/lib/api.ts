@@ -67,6 +67,15 @@ export const api = {
     form.append("file", file);
     return request("/api/cvs", { method: "POST", body: form });
   },
+  viewCv: async (id: string) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/api/cvs/${id}/file`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!response.ok) throw new Error("CV preview is unavailable.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
   deleteCv: (id: string) => request(`/api/cvs/${id}`, { method: "DELETE" }),
 
   submitJobDescription: (rawInput: string) =>
