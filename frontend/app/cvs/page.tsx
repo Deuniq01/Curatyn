@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, Upload, FileText, ArrowRight } from "lucide-react";
+import { Trash2, Upload, FileText, ArrowRight, Mail } from "lucide-react";
 import { api } from "@/lib/api";
 
 type Cv = { id: string; label: string; createdAt: string };
@@ -14,11 +14,46 @@ export default function CvVaultPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [emailProvider, setEmailProvider] = useState<string | null>(null);
+  const [emailAccount, setEmailAccount] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
   const load = () => api.listCvs().then(setCvs).catch((e) => setError(e.message));
+  const loadMe = () =>
+    api
+      .me()
+      .then((m) => {
+        setEmailProvider(m.emailProvider ?? null);
+        setEmailAccount(m.emailProviderAccountId ?? null);
+      })
+      .catch(() => {});
 
   useEffect(() => {
     load();
+    loadMe();
+
+    // Surface the result of the OAuth redirect (?connected=gmail or ?email_error=...)
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const emailError = params.get("email_error");
+    if (connected) setNotice({ kind: "ok", text: `Connected ${connected} for sending.` });
+    else if (emailError) setNotice({ kind: "err", text: `Couldn't connect email: ${emailError}` });
+    if (connected || emailError) window.history.replaceState({}, "", "/cvs");
   }, []);
+
+  const connectGmail = async () => {
+    try {
+      await api.connectEmailProvider("gmail");
+    } catch (err) {
+      setNotice({ kind: "err", text: err instanceof Error ? err.message : "Could not start Gmail connection" });
+    }
+  };
+
+  const disconnectEmail = async () => {
+    await api.disconnectEmailProvider().catch(() => {});
+    await loadMe();
+    setNotice({ kind: "ok", text: "Email disconnected." });
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +79,40 @@ export default function CvVaultPage() {
         <Link href="/apply" className="flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-900">
           Apply to a job <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
+      </div>
+
+      {notice && (
+        <p className={`mb-4 rounded-md px-3 py-2 text-sm ${notice.kind === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+          {notice.text}
+        </p>
+      )}
+
+      <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-neutral-900">
+            <Mail className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+            {emailProvider ? (
+              <span>
+                Sending as <span className="font-medium">{emailAccount || emailProvider}</span>
+              </span>
+            ) : (
+              <span className="text-neutral-500">Connect an email account to send applications.</span>
+            )}
+          </div>
+          {emailProvider ? (
+            <button onClick={disconnectEmail} className="text-sm font-medium text-neutral-500 hover:text-red-600">
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={connectGmail}
+              className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              Connect Gmail
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleUpload} className="mb-8 rounded-lg border border-neutral-200 p-4">

@@ -44,6 +44,13 @@ export const api = {
   me: () => request("/api/auth/me"),
   devConnectProvider: (provider: "GMAIL" | "OUTLOOK") =>
     request(`/api/auth/oauth/dev-connect?provider=${provider}`, { method: "POST" }),
+  // Real OAuth: fetch the provider consent URL, then hand the browser to it.
+  connectEmailProvider: async (provider: "gmail" | "outlook") => {
+    const { authUrl } = await request(`/api/auth/oauth/${provider}/start`);
+    window.location.href = authUrl;
+  },
+  disconnectEmailProvider: () =>
+    request("/api/auth/oauth/email-provider", { method: "DELETE" }),
 
   listCvs: () => request("/api/cvs"),
   uploadCv: (label: string, file: File) => {

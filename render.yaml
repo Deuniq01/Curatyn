@@ -1,0 +1,54 @@
+# Render Blueprint for the Curatyn FastAPI backend.
+# In Render: New > Blueprint > connect this repo. Render reads this file,
+# creates the web service, and prompts you for every env var marked
+# `sync: false`. Non-secret toggles are set here directly.
+#
+# The frontend is deployed separately on Vercel (see DEPLOYMENT.md).
+services:
+  - type: web
+    name: curatyn-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # --- Non-secret production toggles ---
+      - key: AI_BACKEND
+        value: gemini
+      - key: EMAIL_BACKEND
+        value: live
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: GEMINI_EMBED_MODEL
+        value: text-embedding-004
+      - key: STORAGE_BUCKET
+        value: cvs
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # --- Secrets & URLs you paste in the Render dashboard ---
+      - key: DATABASE_URL              # Supabase Session-pooler URI, scheme postgresql+asyncpg://
+        sync: false
+      - key: JWT_SECRET                # the rotated value from your local .env
+        sync: false
+      - key: CURATYN_TOKEN_ENCRYPTION_KEY  # the rotated Fernet value from your local .env
+        sync: false
+      - key: GOOGLE_API_KEY            # Gemini key from Google AI Studio
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI       # https://<this-service>.onrender.com/api/auth/oauth/gmail/callback
+        sync: false
+      - key: SUPABASE_URL              # https://<ref>.supabase.co
+        sync: false
+      - key: SUPABASE_SERVICE_KEY      # Supabase service_role key
+        sync: false
+      - key: FRONTEND_URL             # https://<your-app>.vercel.app
+        sync: false
+      - key: ALLOWED_ORIGINS          # https://<your-app>.vercel.app
+        sync: false

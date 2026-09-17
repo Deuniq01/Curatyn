@@ -31,15 +31,22 @@ async def _build_provider(application: Application, user: User, simulate_failure
     if settings.email_backend == "mock":
         return MockEmailProvider(force_failure=simulate_failure)
 
-    if application.email_provider is None:
-        raise HTTPException(status_code=400, detail="No email provider connected for this application")
+    # The application inherits whichever provider the user has connected.
+    # (email_provider is set on the User by the OAuth callback, not per-application.)
+    provider = application.email_provider or user.email_provider
+    if provider is None:
+        raise HTTPException(status_code=400, detail="No email provider connected — connect Gmail or Outlook first")
     if not user.encrypted_refresh_token:
         raise HTTPException(status_code=400, detail="Email provider is not connected — reconnect Gmail or Outlook")
 
-    access_token = await refresh_access_token(application.email_provider, user.encrypted_refresh_token)
-    if application.email_provider == EmailProviderType.GMAIL:
+    # Record which provider was used, so the application row and its events reflect it.
+    if application.email_provider is None:
+        application.email_provider = provider
+
+    access_token = await refresh_access_token(provider, user.encrypted_refresh_token)
+    if provider == EmailProviderType.GMAIL:
         return GmailProvider(access_token)
-    if application.email_provider == EmailProviderType.OUTLOOK:
+    if provider == EmailProviderType.OUTLOOK:
         return MicrosoftProvider(access_token)
     raise HTTPException(status_code=400, detail="Unknown email provider")
 

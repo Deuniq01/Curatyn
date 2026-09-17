@@ -21,31 +21,109 @@ import hashlib
 import json
 import re
 
+import httpx
+
 from app.config import settings
 from app.models import EMBEDDING_DIM
+
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
 class AIClient:
     async def complete(self, system: str, user: str) -> str:
         if settings.ai_backend == "mock":
             return _mock_complete(system, user)
+        if settings.ai_backend == "gemini":
+            return await _gemini_complete(system, user)
         raise NotImplementedError(
             f"AI_BACKEND={settings.ai_backend!r} is not wired up yet. "
-            "Implement the Gemini/Ollama HTTP call here, keeping the same "
+            "Implement the Ollama HTTP call here, keeping the same "
             "(system, user) -> str signature."
         )
 
     async def embed(self, text: str) -> list[float]:
         if settings.ai_backend == "mock":
             return _mock_embed(text)
+        if settings.ai_backend == "gemini":
+            return await _gemini_embed(text)
         raise NotImplementedError(
             f"AI_BACKEND={settings.ai_backend!r} is not wired up yet. "
-            "Implement the Gemini/Ollama embedding call here, keeping the "
+            "Implement the Ollama embedding call here, keeping the "
             f"same text -> list[float] of length {EMBEDDING_DIM} signature."
         )
 
 
 ai_client = AIClient()
+
+
+# ---------------------------------------------------------------------------
+# Gemini backend (Google Generative Language API, plain REST over httpx)
+# ---------------------------------------------------------------------------
+
+def _require_api_key() -> str:
+    if not settings.google_api_key:
+        raise RuntimeError(
+            "AI_BACKEND=gemini but GOOGLE_API_KEY is not set. Create a key at "
+            "https://aistudio.google.com/apikey and set GOOGLE_API_KEY."
+        )
+    return settings.google_api_key
+
+
+def _strip_code_fences(text: str) -> str:
+    """Defensive: some completions wrap JSON in ```json ... ``` fences even
+    when application/json is requested. ai_pipeline.py then json.loads() this."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```[a-zA-Z0-9]*\n?", "", stripped)
+        stripped = re.sub(r"\n?```$", "", stripped)
+    return stripped.strip()
+
+
+async def _gemini_complete(system: str, user: str) -> str:
+    api_key = _require_api_key()
+    url = f"{GEMINI_API_BASE}/models/{settings.gemini_model}:generateContent"
+    body = {
+        "system_instruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        # Both Curatyn prompts demand strict JSON back; ask the model for it.
+        "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
+    }
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
+    if response.status_code >= 400:
+        raise RuntimeError(f"Gemini completion failed: {response.status_code} {response.text}")
+
+    data = response.json()
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as exc:
+        # e.g. blocked by safety filters, or empty candidate list.
+        raise RuntimeError(f"Gemini returned no usable completion: {json.dumps(data)[:500]}") from exc
+    return _strip_code_fences(text)
+
+
+async def _gemini_embed(text: str) -> list[float]:
+    api_key = _require_api_key()
+    url = f"{GEMINI_API_BASE}/models/{settings.gemini_embed_model}:embedContent"
+    body = {
+        "model": f"models/{settings.gemini_embed_model}",
+        "content": {"parts": [{"text": text or "empty"}]},
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(url, headers={"x-goog-api-key": api_key}, json=body)
+    if response.status_code >= 400:
+        raise RuntimeError(f"Gemini embedding failed: {response.status_code} {response.text}")
+
+    values = response.json().get("embedding", {}).get("values")
+    if not values:
+        raise RuntimeError(f"Gemini embedding response missing values: {response.text[:500]}")
+    if len(values) != EMBEDDING_DIM:
+        raise RuntimeError(
+            f"Gemini embedding dimension {len(values)} != EMBEDDING_DIM {EMBEDDING_DIM}. "
+            f"Set gemini_embed_model to a {EMBEDDING_DIM}-dim model (e.g. text-embedding-004) "
+            "or update EMBEDDING_DIM in app/models.py and recreate the DB."
+        )
+    return values
 
 
 # ---------------------------------------------------------------------------
