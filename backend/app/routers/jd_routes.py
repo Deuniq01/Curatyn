@@ -14,6 +14,17 @@ router = APIRouter(prefix="/api/job-descriptions", tags=["job-descriptions"])
 logger = logging.getLogger(__name__)
 
 
+def _analysis_error(exc: Exception) -> str:
+    message = str(exc).replace("\n", " ").strip()
+    if "GOOGLE_API_KEY is not set" in message:
+        return "Gemini is not configured: GOOGLE_API_KEY is missing in Render."
+    if "Gemini completion failed:" in message or "Gemini embedding failed:" in message:
+        return message[:320]
+    if "Gemini returned no usable completion" in message or "embedding response missing" in message:
+        return message[:320]
+    return f"Gemini processing failed: {type(exc).__name__}. Check Render logs for details."
+
+
 @router.post("")
 async def submit_job_description_text(
     payload: JDTextRequest,
@@ -31,7 +42,7 @@ async def submit_job_description_text(
         structured = await extract_job_description(session, jd.id)
     except Exception as exc:
         logger.exception("Job description analysis failed")
-        raise HTTPException(status_code=502, detail="Job analysis is unavailable. Check the Gemini configuration and try again.") from exc
+        raise HTTPException(status_code=502, detail=_analysis_error(exc)) from exc
 
     return {"id": jd.id, "structured": structured}
 
@@ -64,7 +75,7 @@ async def submit_job_description_image(
         raise
     except Exception as exc:
         logger.exception("Job description image analysis failed")
-        raise HTTPException(status_code=502, detail="Image job analysis is unavailable. Check the Gemini and storage configuration.") from exc
+        raise HTTPException(status_code=502, detail=_analysis_error(exc)) from exc
 
 
 @router.post("/combined")
@@ -92,7 +103,7 @@ async def submit_job_description_combined(
             image_text = await extract_text_from_image(content, file.content_type)
         except Exception as exc:
             logger.exception("Combined job description image analysis failed")
-            raise HTTPException(status_code=502, detail="Image job analysis is unavailable. Check the Gemini and storage configuration.") from exc
+            raise HTTPException(status_code=502, detail=_analysis_error(exc)) from exc
 
     combined_text = "\n\n".join(part for part in (raw_input.strip(), image_text.strip()) if part)
     jd = JobDescription(user_id=user.id, source_type="text", raw_input=combined_text, image_url=image_url)
@@ -104,7 +115,7 @@ async def submit_job_description_combined(
         return {"id": jd.id, "structured": structured}
     except Exception as exc:
         logger.exception("Combined job description analysis failed")
-        raise HTTPException(status_code=502, detail="Job analysis is unavailable. Check the Gemini configuration and try again.") from exc
+        raise HTTPException(status_code=502, detail=_analysis_error(exc)) from exc
 
 
 @router.get("/{jd_id}")
