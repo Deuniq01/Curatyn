@@ -12,6 +12,7 @@ string almost verbatim:
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+import ssl
 
 from app.config import settings
 
@@ -35,7 +36,11 @@ def _build_engine():
     is_supabase = "supabase.co" in host or "supabase.com" in host
 
     if is_supabase or (sslmode and sslmode != "disable"):
-        connect_args["ssl"] = True
+        connect_args["ssl"] = (
+            ssl.create_default_context()
+            if settings.database_ssl_verify
+            else ssl._create_unverified_context()
+        )
     if is_supabase:
         # Required behind Supabase's pgbouncer transaction pooler.
         connect_args["statement_cache_size"] = 0

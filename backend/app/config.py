@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://curatyn:curatyn@localhost:5432/curatyn"
+    database_ssl_verify: bool = True
     jwt_secret: str = "dev-only-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60 * 24
