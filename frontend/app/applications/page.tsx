@@ -31,15 +31,15 @@ export default function ApplicationsHistoryPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="mb-6 text-lg font-semibold text-neutral-900">Applications</h1>
-      <div className="space-y-2">
-        {applications.length === 0 && <p className="text-sm text-neutral-500">No applications yet.</p>}
+    <main className="workspace-page">
+      <div className="workspace-header"><div><div className="workspace-kicker">Workspace / 03</div><h1 className="workspace-title">Your applications.</h1><p className="workspace-intro">A clear record of the roles you are considering, reviewing, and sending into the world.</p></div></div>
+      <div className="workspace-list">
+        {applications.length === 0 && <div className="workspace-card"><p>No applications yet. Start with a job description when you are ready.</p></div>}
         {applications.map((a) => (
           <Link
             key={a.id}
             href={`/applications/${a.id}`}
-            className="flex items-center justify-between rounded-md border border-neutral-200 px-4 py-3 hover:border-neutral-400"
+            className="workspace-list-item"
           >
             <div>
               <div className="text-sm font-medium text-neutral-900">{a.roleTitle || "Untitled role"}</div>

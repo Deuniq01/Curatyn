@@ -1,57 +1,31 @@
 import Link from "next/link";
-import { Mail, ShieldCheck, Sparkles, FileText } from "lucide-react";
+import Image from "next/image";
+import { ArrowDown, ArrowUpRight, Check, FileText, Mail, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function LandingPage() {
-  return (
-    <main className="mx-auto max-w-3xl px-6 py-20">
-      <h1 className="text-4xl font-semibold tracking-tight text-neutral-900">
-        Apply to jobs faster, without losing the personal touch.
-      </h1>
-      <p className="mt-4 text-lg text-neutral-600">
-        Paste a job description. Curatyn matches your best CV, writes a
-        tailored cover letter, and lets you review everything before a
-        single email goes out.
-      </p>
+  return <main className="landing landing-new">
+    <header className="landing-topbar landing-nav-new">
+      <Link href="/" className="landing-logo" aria-label="Curatyn home"><Image src="/logo.png" alt="Curatyn" width={142} height={70} priority /></Link>
+      <nav className="landing-nav"><Link href="#how-it-works">How it works</Link><Link href="#why-curatyn">Why Curatyn</Link><Link href="/login" className="nav-login">Log in <ArrowUpRight size={13} aria-hidden="true" /></Link></nav>
+    </header>
 
-      <div className="mt-8 flex gap-3">
-        <Link href="/signup" className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800">
-          Get started
-        </Link>
-        <Link href="/login" className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-          Log in
-        </Link>
-      </div>
+    <section className="landing-hero landing-hero-new">
+      <div className="hero-copy-new"><p className="landing-kicker">A better way to apply</p><h1>Apply for the jobs that <em>actually matter.</em></h1><p className="landing-copy">Stop rewriting your CV and cover letter for every job. Curatyn turns a job description into a tailored, ready-to-send application using the experience you already have.</p><div className="landing-actions"><Link href="/signup" className="button-primary">Get started <ArrowUpRight size={16} aria-hidden="true" /></Link><Link href="#how-it-works" className="button-ghost">See how it works <ArrowDown size={15} aria-hidden="true" /></Link></div><p className="hero-note"><Check size={15} aria-hidden="true" /> Your experience. The right opportunity. A better application.</p></div>
+      <div className="hero-visual" aria-label="A considered application assembled from your experience"><div className="hero-paper hero-paper-back"><span>CV VAULT</span><strong>Experience,<br />kept ready.</strong><i /></div><div className="hero-paper hero-paper-front"><div className="paper-top"><span>CURATYN</span><span>APPLICATION / 001</span></div><div className="paper-rule" /><p className="paper-eyebrow">A thoughtful application for</p><h2>Senior Product<br />Designer</h2><div className="paper-details"><span>Company</span><strong>Northstar Studio</strong><span>Prepared with</span><strong>Your experience</strong></div><div className="paper-signature">Ready when you are <ArrowUpRight size={16} aria-hidden="true" /></div></div><div className="hero-sticker">made for<br /><strong>the right<br />ones</strong></div></div>
+    </section>
 
-      <section className="mt-16 grid gap-8 sm:grid-cols-3">
-        <div>
-          <FileText className="h-5 w-5 text-neutral-500" aria-hidden="true" />
-          <h3 className="mt-3 text-sm font-medium text-neutral-900">Your CVs, matched</h3>
-          <p className="mt-1 text-sm text-neutral-600">Upload your CVs once. Curatyn ranks them against every job you consider.</p>
-        </div>
-        <div>
-          <Sparkles className="h-5 w-5 text-neutral-500" aria-hidden="true" />
-          <h3 className="mt-3 text-sm font-medium text-neutral-900">A cover letter that fits</h3>
-          <p className="mt-1 text-sm text-neutral-600">Generated from the actual posting and your actual experience, not a template.</p>
-        </div>
-        <div>
-          <ShieldCheck className="h-5 w-5 text-neutral-500" aria-hidden="true" />
-          <h3 className="mt-3 text-sm font-medium text-neutral-900">You approve every send</h3>
-          <p className="mt-1 text-sm text-neutral-600">Nothing goes out until you review and confirm it. No inbox reading required.</p>
-        </div>
-      </section>
+    <section className="landing-statement"><p>You&apos;ve already done the hard part.</p><h2>You&apos;ve built the skills.<br /><em>Now put them to work.</em></h2><ArrowDown size={20} aria-hidden="true" /></section>
 
-      <section className="mt-16 rounded-lg border border-neutral-200 p-6">
-        <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-          <Mail className="h-4 w-4" aria-hidden="true" />
-          How it works
-        </div>
-        <ol className="mt-3 space-y-2 text-sm text-neutral-600">
-          <li>1. Paste or screenshot a job description.</li>
-          <li>2. Curatyn recommends the best matching CV from your vault.</li>
-          <li>3. Review the generated cover letter and email, edit anything.</li>
-          <li>4. Send directly through your connected Gmail or Outlook, or save as a draft.</li>
-        </ol>
-      </section>
-    </main>
-  );
+    <section className="landing-problem"><div className="section-number">01 <span>The problem</span></div><div><h2>You shouldn&apos;t have to start from scratch every time.</h2><div className="problem-copy"><p>You find a role you genuinely want. Then comes the familiar routine: open your CV, rewrite your experience, write another cover letter, find the right version, rewrite the email, check everything again.</p><p>By the time you&apos;re ready to apply, you&apos;ve spent more time preparing the application than finding the opportunity.</p><strong>Curatyn changes that.</strong></div></div></section>
+
+    <section className="landing-workflow" id="how-it-works"><div className="section-heading"><div className="section-number">02 <span>How Curatyn works</span></div><h2>From job description to<br /><em>ready-to-send application.</em></h2></div><div className="workflow-grid"><article><span className="workflow-index">01</span><FileText size={24} strokeWidth={1.5} /><h3>Keep your CVs in one place</h3><p>Build your personal CV Vault. Keep different versions for different roles, industries, and career paths without digging through folders.</p><small>Frontend Developer. Project Manager. Data Analyst.</small></article><article><span className="workflow-index">02</span><Sparkles size={24} strokeWidth={1.5} /><h3>Bring the opportunity</h3><p>Paste a job description or upload a screenshot. Curatyn identifies the company, role, requirements, and application details.</p><small>Less searching. More understanding.</small></article><article><span className="workflow-index">03</span><ShieldCheck size={24} strokeWidth={1.5} /><h3>Match your experience</h3><p>Curatyn compares the opportunity with your saved CVs and recommends the version that best fits. You stay in control.</p><small>Review the recommendation before moving forward.</small></article><article><span className="workflow-index">04</span><Mail size={24} strokeWidth={1.5} /><h3>Make the application yours</h3><p>Prepare a cover letter, professional subject line, and clear application email that speaks to the actual role.</p><small>Not a generic template with a few words swapped out.</small></article></div></section>
+
+    <section className="landing-review"><div className="review-quote">“</div><div><p className="landing-kicker">05 / Review before you send</p><h2>This is your application.<br /><em>So you get the final say.</em></h2><p>Review the company, role, recipient, CV, cover letter, subject line, and email before anything is sent. Nothing goes out without your approval.</p><Link href="/signup" className="text-link">Build your workspace <ArrowUpRight size={15} aria-hidden="true" /></Link></div><div className="review-checklist"><span><Check size={15} /> Company and role</span><span><Check size={15} /> Selected CV</span><span><Check size={15} /> Cover letter and email</span><span><Check size={15} /> Your approval</span></div></section>
+
+    <section className="landing-benefits" id="why-curatyn"><div className="section-number">03 <span>Why Curatyn</span></div><h2>Less repetition.<br /><em>More intention.</em></h2><div className="benefit-list"><div><strong>Your CVs, organized</strong><p>Keep your different CV versions together and ready for the right opportunity.</p></div><div><strong>Applications that fit the role</strong><p>Use the job description and your actual experience to create relevant content.</p></div><div><strong>You remain in control</strong><p>Curatyn helps prepare your application. You decide what gets sent.</p></div><div><strong>Built for the real job search</strong><p>Applying is stressful enough without rewriting the same email for an hour.</p></div></div></section>
+
+    <section className="landing-final"><p className="landing-kicker">Make every application count</p><h2>Your next opportunity deserves more than a <em>copy-and-paste</em> application.</h2><Link href="/signup" className="button-primary">Get started <ArrowUpRight size={16} aria-hidden="true" /></Link><p>Prepare better applications, faster, while keeping control from start to finish.</p></section>
+
+    <footer className="landing-footer landing-footer-new"><div><Link href="/" className="landing-logo footer-logo" aria-label="Curatyn home"><Image src="/logo.png" alt="Curatyn" width={142} height={70} /></Link><p>Apply with intention.</p></div><div className="footer-links"><strong>Product</strong><Link href="#how-it-works">How it works</Link><Link href="#why-curatyn">Why Curatyn</Link></div><div className="footer-links"><strong>Legal</strong><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link></div><div className="footer-links"><strong>Stay in touch</strong><Link href="mailto:hello@curatyn.app">Contact</Link><Link href="/signup">Get started</Link></div><div className="footer-bottom"><span>© 2026 Curatyn. All rights reserved.</span><span>Built for thoughtful applications.</span></div></footer>
+  </main>;
 }

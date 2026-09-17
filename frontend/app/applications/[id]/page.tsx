@@ -5,11 +5,23 @@ import { useParams } from "next/navigation";
 import FinalReviewScreen, { SendConfirmationModal } from "@/components/FinalReviewScreen.jsx";
 import { api } from "@/lib/api";
 
+type Application = {
+  id: string;
+  status: string;
+  companyName: string | null;
+  roleTitle: string | null;
+  recipientEmail: string | null;
+  emailSubject: string | null;
+  coverLetter: string | null;
+  selectedCvLabel: string | null;
+  lastSendError: string | null;
+};
+
 export default function ApplicationReviewPage() {
   const params = useParams<{ id: string }>();
   const applicationId = params.id;
 
-  const [application, setApplication] = useState<any>(null);
+  const [application, setApplication] = useState<Application | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +35,8 @@ export default function ApplicationReviewPage() {
 
   useEffect(() => {
     load();
+    // The loader is intentionally scoped to the current application id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId]);
 
   if (!application) {
@@ -35,7 +49,7 @@ export default function ApplicationReviewPage() {
       emailSubject: "emailSubject",
       coverLetter: "coverLetter",
     };
-    setApplication((prev: any) => ({ ...prev, [field]: value }));
+    setApplication((prev) => prev ? { ...prev, [field]: value } as Application : prev);
 
     if (field === "coverLetter") {
       await api.editCoverLetter(applicationId, value);

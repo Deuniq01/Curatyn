@@ -36,8 +36,8 @@ export default function CvVaultPage() {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const emailError = params.get("email_error");
-    if (connected) setNotice({ kind: "ok", text: `Connected ${connected} for sending.` });
-    else if (emailError) setNotice({ kind: "err", text: `Couldn't connect email: ${emailError}` });
+    if (connected) setTimeout(() => setNotice({ kind: "ok", text: `Connected ${connected} for sending.` }), 0);
+    else if (emailError) setTimeout(() => setNotice({ kind: "err", text: `Couldn't connect email: ${emailError}` }), 0);
     if (connected || emailError) window.history.replaceState({}, "", "/cvs");
   }, []);
 
@@ -73,11 +73,10 @@ export default function CvVaultPage() {
   };
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-900">CV Vault</h1>
-        <Link href="/apply" className="flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-900">
-          Apply to a job <ArrowRight className="h-4 w-4" aria-hidden="true" />
+    <main className="workspace-page">
+      <div className="workspace-header">
+        <div><div className="workspace-kicker">Workspace / 01</div><h1 className="workspace-title">Your CV vault.</h1><p className="workspace-intro">Keep the versions of your experience close. Curatyn will surface the one that fits when you are ready to apply.</p></div>
+        <Link href="/apply" className="workspace-button"><ArrowRight className="h-4 w-4" aria-hidden="true" /> Start an application
         </Link>
       </div>
 
@@ -87,7 +86,7 @@ export default function CvVaultPage() {
         </p>
       )}
 
-      <div className="mb-8 rounded-lg border border-neutral-200 p-4">
+      <div className="workspace-card mb-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-neutral-900">
             <Mail className="h-4 w-4 text-neutral-400" aria-hidden="true" />
@@ -115,14 +114,14 @@ export default function CvVaultPage() {
         </div>
       </div>
 
-      <form onSubmit={handleUpload} className="mb-8 rounded-lg border border-neutral-200 p-4">
+      <form onSubmit={handleUpload} className="workspace-card mb-5">
         <div className="mb-3">
           <label className="text-xs text-neutral-500">Label</label>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. Frontend Developer CV"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+            className="workspace-input mt-1"
           />
         </div>
         <div className="mb-3">
@@ -134,21 +133,21 @@ export default function CvVaultPage() {
             className="mt-1 w-full text-sm"
           />
         </div>
-        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="form-error mb-3">{error}</p>}
         <button
           type="submit"
           disabled={uploading || !file || !label}
-          className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="workspace-button disabled:opacity-50"
         >
           <Upload className="h-4 w-4" aria-hidden="true" />
           {uploading ? "Uploading..." : "Upload CV"}
         </button>
       </form>
 
-      <div className="space-y-2">
-        {cvs.length === 0 && <p className="text-sm text-neutral-500">No CVs yet. Upload one to get started.</p>}
+      <div className="workspace-list">
+        {cvs.length === 0 && <div className="workspace-card"><p>No CVs yet. Upload one to get started.</p></div>}
         {cvs.map((cv) => (
-          <div key={cv.id} className="flex items-center justify-between rounded-md border border-neutral-200 px-4 py-3">
+          <div key={cv.id} className="workspace-list-item">
             <div className="flex items-center gap-2 text-sm text-neutral-900">
               <FileText className="h-4 w-4 text-neutral-400" aria-hidden="true" />
               {cv.label}

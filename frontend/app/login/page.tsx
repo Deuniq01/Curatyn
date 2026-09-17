@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
+import Link from "next/link";
+import { ArrowRight, Mail } from "lucide-react";
+import AuthShell from "@/components/AuthShell";
+import PasswordField from "@/components/PasswordField";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,39 +30,15 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <main className="mx-auto max-w-sm px-6 py-20">
-      <h1 className="text-lg font-semibold text-neutral-900">Log in</h1>
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <div>
-          <label className="text-xs text-neutral-500">Email</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-neutral-500">Password</label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-          />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-        >
-          {loading ? "Logging in..." : "Log in"}
-        </button>
-      </form>
-    </main>
-  );
+  return <AuthShell mode="login">
+    <h2>Welcome back.</h2>
+    <p className="auth-panel-intro">Your application workspace is ready when you are.</p>
+    <form onSubmit={handleSubmit} className="auth-form">
+      <div><label className="field-label" htmlFor="login-email">Email address</label><div className="input-wrap"><Mail size={16} aria-hidden="true" /><input id="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@company.com" /></div></div>
+      <div><label className="field-label" htmlFor="login-password">Password</label><PasswordField value={password} onChange={setPassword} /></div>
+      {error && <p className="form-error">{error}</p>}
+      <button type="submit" disabled={loading} className="auth-submit"><span>{loading ? "Opening workspace..." : "Log in"}</span><ArrowRight size={17} aria-hidden="true" /></button>
+    </form>
+    <p className="auth-panel-foot">New to Curatyn? <Link href="/signup">Create your workspace</Link></p>
+  </AuthShell>;
 }
