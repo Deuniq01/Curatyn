@@ -23,7 +23,7 @@ Work top to bottom. Each phase produces values you paste into a later phase, so 
 
 Your first commit accidentally included secrets (the `.gitignore` was misspelled). I've fixed that locally: rotated the keys, un-tracked `backend/.env` and `backend/.venv/`, and staged everything. Before we push:
 
-1. **Reset your Supabase database password.** The old one (`Abdulkareem05..`) is public in your git history. In the Supabase dashboard: **Project Settings → Database → Reset database password**. 📋 copy the new password. (You'll build the full connection string in Phase 1.)
+1. **Reset your Supabase database password.** The old one is exposed in your git history, so it must be replaced with a **brand-new** value (not the same string). In the Supabase dashboard: **Project Settings → Database → Reset database password**. 📋 copy the new password. (You'll build the full connection string in Phase 1.)
 
 2. **Make the GitHub repo private** (recommended). On GitHub: **Settings → General → Danger Zone → Change repository visibility → Private**. The old leaked key stays in history but is now worthless — we rotated it.
 

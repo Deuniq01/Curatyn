@@ -64,10 +64,18 @@ export default function ApplicationReviewPage() {
   };
 
   const handleSaveDraft = async () => {
-    const key = crypto.randomUUID();
-    const result = await api.draftApplication(applicationId, key);
-    await load();
-    return result;
+    setError(null);
+    try {
+      const key = crypto.randomUUID();
+      const result = await api.draftApplication(applicationId, key);
+      await load();
+      if (result?.status === "DRAFT_CREATION_FAILED") {
+        setError(result.error || "Could not save the draft.");
+      }
+      return result;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the draft.");
+    }
   };
 
   const openSendConfirmation = () => {
@@ -77,10 +85,14 @@ export default function ApplicationReviewPage() {
 
   const confirmSend = async () => {
     setSending(true);
+    setError(null);
     try {
       const key = idempotencyKeyRef.current || crypto.randomUUID();
       await api.sendApplication(applicationId, key);
       await load();
+      setShowConfirm(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not send the application.");
       setShowConfirm(false);
     } finally {
       setSending(false);
@@ -89,6 +101,11 @@ export default function ApplicationReviewPage() {
 
   return (
     <main className="px-6 py-16">
+      {error && (
+        <div className="mx-auto mb-4 max-w-xl rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       <FinalReviewScreen
         application={application}
         onSaveField={handleSaveField}

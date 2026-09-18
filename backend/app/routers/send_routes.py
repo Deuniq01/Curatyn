@@ -8,6 +8,7 @@ cover letter, CV selection, subject, and body are never touched here.
 """
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -124,6 +125,16 @@ async def send_application(
         await _log_event(session, application, ApplicationEventType.SEND_FAILED, {"error": exc.message, "providerStatus": exc.provider_status})
         return {"status": "SEND_FAILED", "error": exc.message, "retryable": exc.retryable}
 
+    except (httpx.HTTPError, RuntimeError) as exc:
+        # Token refresh (httpx) or storage fetch (RuntimeError) failed before the
+        # provider send. Surface a readable reason instead of a raw 500.
+        message = f"Send failed before delivery: {exc}"
+        application.status = ApplicationStatus.SEND_FAILED
+        application.last_send_error = message
+        await session.commit()
+        await _log_event(session, application, ApplicationEventType.SEND_FAILED, {"error": message})
+        return {"status": "SEND_FAILED", "error": message, "retryable": True}
+
 
 @router.post("/{application_id}/draft")
 async def save_application_as_draft(
@@ -169,3 +180,12 @@ async def save_application_as_draft(
         application.last_send_error = exc.message
         await session.commit()
         return {"status": "DRAFT_CREATION_FAILED", "error": exc.message, "retryable": exc.retryable}
+
+    except (httpx.HTTPError, RuntimeError) as exc:
+        # Token refresh (httpx) or storage fetch (RuntimeError) failed before the
+        # draft could be created. Surface a readable reason instead of a raw 500.
+        message = f"Draft creation failed: {exc}"
+        application.status = ApplicationStatus.DRAFT_CREATION_FAILED
+        application.last_send_error = message
+        await session.commit()
+        return {"status": "DRAFT_CREATION_FAILED", "error": message, "retryable": True}
