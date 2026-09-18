@@ -20,16 +20,20 @@ import {
  * Component tree:
  *
  * FinalReviewScreen
+ *  ├─ ReviewGateNotice            — visible while READY_FOR_REVIEW / USER_REVIEWING
  *  ├─ ReviewField (Company)
  *  ├─ ReviewField (Role)
  *  ├─ ReviewField (To)            — editable
  *  ├─ ReviewField (Subject)       — editable
  *  ├─ ReviewField (CV attachment)
  *  ├─ CoverLetterPanel            — editable textarea + regenerate action
- *  ├─ SendFailedBanner            — only rendered when status === "SEND_FAILED"
+ *  ├─ FailureBanner               — SEND_FAILED and DRAFT_CREATION_FAILED
  *  └─ ActionBar
  *      ├─ Save as Draft button
  *      └─ Send Application button → opens SendConfirmationModal
+ *
+ * Both action buttons are disabled unless the status is one the server will
+ * accept, so a gated state is shown rather than discovered by clicking.
  *
  * SendConfirmationModal (separate file below in this same document)
  */
@@ -85,37 +89,21 @@ function CoverLetterPanel({ coverLetter, onChange, onRegenerate, regenerating })
   );
 }
 
-function SendFailedBanner({ message, onRetry, onSaveDraft, onBackToReview }) {
+function FailureBanner({ title, message, retryLabel, onRetry }) {
   return (
     <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 text-red-600" aria-hidden="true" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-red-800">
-            Send failed. Your application has not been sent.
-          </p>
-          <p className="mt-1 text-sm text-red-700">{message}</p>
-          <div className="mt-3 flex gap-2">
+          <p className="text-sm font-medium text-red-800">{title}</p>
+          {message && <p className="mt-1 text-sm text-red-700">{message}</p>}
+          <div className="mt-3">
             <button
               type="button"
               onClick={onRetry}
               className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
             >
-              Try Again
-            </button>
-            <button
-              type="button"
-              onClick={onSaveDraft}
-              className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-            >
-              Save as Draft
-            </button>
-            <button
-              type="button"
-              onClick={onBackToReview}
-              className="rounded-md px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-            >
-              Back to Review
+              {retryLabel}
             </button>
           </div>
         </div>
@@ -124,8 +112,67 @@ function SendFailedBanner({ message, onRetry, onSaveDraft, onBackToReview }) {
   );
 }
 
-export default function FinalReviewScreen({ application, onSaveField, onRegenerateCoverLetter, onOpenSendConfirmation, onSaveDraft }) {
+/**
+ * The review gate, made visible. A generated application stops at
+ * READY_FOR_REVIEW and the server will not send or draft from there — which used
+ * to be indistinguishable from a broken button. This states the gate and
+ * provides the one action that clears it.
+ */
+function ReviewGateNotice({ application, onMarkReviewed }) {
+  if (application.status === "READY_FOR_REVIEW") {
+    return (
+      <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden="true" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-900">This application still needs your review.</p>
+            <p className="mt-1 text-sm text-amber-800">
+              Everything below was generated for you. Read it over, then mark it as reviewed to unlock
+              sending and drafts.
+            </p>
+            <button
+              type="button"
+              onClick={onMarkReviewed}
+              className="mt-3 flex items-center gap-2 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+            >
+              <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              Mark as reviewed
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (application.status === "USER_REVIEWING") {
+    return (
+      <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-4">
+        <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden="true" />
+        <p className="text-sm text-amber-800">
+          Still missing: {(application.missingFields || []).join(", ") || "some fields"}. Fill these in to
+          unlock sending.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// Mirrors CLAIMABLE_STATUSES in backend/app/idempotency.py — the states the
+// server will accept a send or a draft from. Anything outside this set has an
+// action that would be refused, so the buttons are disabled rather than left to
+// fail on click.
+const SENDABLE_STATUSES = new Set([
+  "READY_TO_SEND",
+  "SEND_FAILED",
+  "DRAFT_CREATED",
+  "DRAFT_CREATION_FAILED",
+]);
+
+export default function FinalReviewScreen({ application, onSaveField, onRegenerateCoverLetter, onOpenSendConfirmation, onSaveDraft, onMarkReviewed }) {
   const [regenerating, setRegenerating] = useState(false);
+  const canAct = SENDABLE_STATUSES.has(application.status);
 
   const handleRegenerate = async () => {
     setRegenerating(true);
@@ -140,13 +187,30 @@ export default function FinalReviewScreen({ application, onSaveField, onRegenera
     <div className="mx-auto max-w-xl rounded-lg border border-neutral-200 bg-white p-6">
       <h1 className="mb-4 text-lg font-semibold text-neutral-900">Review Application</h1>
 
+      <ReviewGateNotice application={application} onMarkReviewed={onMarkReviewed} />
+
       {application.status === "SEND_FAILED" && (
-        <SendFailedBanner
+        <FailureBanner
+          title="Send failed. Your application has not been sent."
           message={application.lastSendError}
+          retryLabel="Try Again"
           onRetry={onOpenSendConfirmation}
-          onSaveDraft={onSaveDraft}
-          onBackToReview={() => {}}
         />
+      )}
+
+      {application.status === "DRAFT_CREATION_FAILED" && (
+        <FailureBanner
+          title="Your draft was not created."
+          message={application.lastSendError}
+          retryLabel="Try Draft Again"
+          onRetry={onSaveDraft}
+        />
+      )}
+
+      {application.status === "DRAFT_CREATED" && (
+        <p className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
+          A draft of this application is already in your mailbox. You can still send it from here.
+        </p>
       )}
 
       <ReviewField icon={Building2} label="Company" value={application.companyName} editable={false} />
@@ -183,7 +247,8 @@ export default function FinalReviewScreen({ application, onSaveField, onRegenera
         <button
           type="button"
           onClick={onSaveDraft}
-          className="flex items-center gap-2 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          disabled={!canAct}
+          className="flex items-center gap-2 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <Save className="h-4 w-4" aria-hidden="true" />
           Save as Draft
@@ -191,7 +256,8 @@ export default function FinalReviewScreen({ application, onSaveField, onRegenera
         <button
           type="button"
           onClick={onOpenSendConfirmation}
-          className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          disabled={!canAct}
+          className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-neutral-900"
         >
           <Send className="h-4 w-4" aria-hidden="true" />
           Send Application

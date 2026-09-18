@@ -27,6 +27,19 @@ TERMINAL_SUCCESS_STATUSES = {ApplicationStatus.SENT, ApplicationStatus.DRAFT_CRE
 TERMINAL_FAILURE_STATUSES = {ApplicationStatus.SEND_FAILED, ApplicationStatus.DRAFT_CREATION_FAILED}
 IN_FLIGHT_STATUSES = {ApplicationStatus.SENDING, ApplicationStatus.SAVING_DRAFT}
 
+# The states a send or draft may start from. Both claim functions used to carry
+# their own private copy of this list, which is how a state that one of them
+# accepted ended up rejected by the other.
+#
+# READY_FOR_REVIEW and USER_REVIEWING are deliberately absent: the review gate is
+# cleared by an explicit user action, never by reaching for a send.
+CLAIMABLE_STATUSES = {
+    ApplicationStatus.READY_TO_SEND,
+    ApplicationStatus.SEND_FAILED,
+    ApplicationStatus.DRAFT_CREATED,          # saving a draft does not block sending
+    ApplicationStatus.DRAFT_CREATION_FAILED,  # a draft that failed can be retried
+}
+
 
 async def check_idempotency(session: AsyncSession, application_id: str, idempotency_key: str) -> IdempotencyCheckResult:
     result = await session.execute(select(Application).where(Application.id == application_id))
@@ -45,14 +58,13 @@ async def check_idempotency(session: AsyncSession, application_id: str, idempote
 
 async def claim_for_sending(session: AsyncSession, application: Application, idempotency_key: str) -> bool:
     """Atomically claims send: conditional UPDATE so concurrent requests with
-    the same key cannot both proceed to call the provider. Allowed starting
-    states are READY_TO_SEND (first attempt) and SEND_FAILED (retry with a
-    fresh idempotency key after PRD Section 13's "Try Again")."""
+    the same key cannot both proceed to call the provider. See
+    CLAIMABLE_STATUSES for the allowed starting states."""
     stmt = (
         update(Application)
         .where(
             Application.id == application.id,
-            Application.status.in_([ApplicationStatus.READY_TO_SEND, ApplicationStatus.SEND_FAILED]),
+            Application.status.in_(CLAIMABLE_STATUSES),
         )
         .values(idempotency_key=idempotency_key, status=ApplicationStatus.SENDING)
     )
@@ -62,11 +74,12 @@ async def claim_for_sending(session: AsyncSession, application: Application, ide
 
 
 async def claim_for_drafting(session: AsyncSession, application: Application, idempotency_key: str) -> bool:
+    """Same contract as claim_for_sending, for the draft path."""
     stmt = (
         update(Application)
         .where(
             Application.id == application.id,
-            Application.status.in_([ApplicationStatus.READY_TO_SEND, ApplicationStatus.SEND_FAILED]),
+            Application.status.in_(CLAIMABLE_STATUSES),
         )
         .values(idempotency_key=idempotency_key, status=ApplicationStatus.SAVING_DRAFT)
     )

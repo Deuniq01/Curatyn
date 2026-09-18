@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, require_application_ownership
@@ -18,14 +18,55 @@ from app.config import settings
 from app.db import get_session
 from app.email_provider import EmailAttachment, EmailProviderError, MockEmailProvider
 from app.gmail_provider import GmailProvider
-from app.idempotency import IdempotencyOutcome, check_idempotency, claim_for_drafting, claim_for_sending
+from app.idempotency import (
+    CLAIMABLE_STATUSES,
+    IN_FLIGHT_STATUSES,
+    IdempotencyOutcome,
+    check_idempotency,
+    claim_for_drafting,
+    claim_for_sending,
+)
 from app.microsoft_provider import MicrosoftProvider
 from app.models import Application, ApplicationEvent, ApplicationEventType, ApplicationStatus, CV, EmailProviderType, User
+from app.readiness import missing_send_fields
 from app.schemas import SendRequest
 from app.storage import fetch_cv_pdf_bytes
 from app.token_refresh import refresh_access_token
 
 router = APIRouter(prefix="/api/applications", tags=["send"])
+
+
+def _not_claimable_reason(application: Application, verb: str) -> str:
+    """Why this application can't be claimed to `verb` right now, phrased so the
+    review screen can show it verbatim. A refusal the user can't act on is the
+    bug this replaces."""
+    status = application.status
+    if status == ApplicationStatus.READY_FOR_REVIEW:
+        return f"Mark this application as reviewed before you {verb} it."
+    if status == ApplicationStatus.USER_REVIEWING:
+        missing = missing_send_fields(application)
+        if missing:
+            return f"Cannot {verb} yet — still missing: {', '.join(missing)}."
+        return f"Mark this application as reviewed before you {verb} it."
+    if status == ApplicationStatus.SENT:
+        return "This application has already been sent."
+    if status == ApplicationStatus.CANCELLED:
+        return "This application was cancelled."
+    if status in IN_FLIGHT_STATUSES:
+        return f"Another action is already in progress for this application. Try again in a moment."
+    return f"This application is not in a state that allows this (status {status.value})."
+
+
+async def _release_claim(session: AsyncSession, application_id: str, status: ApplicationStatus) -> None:
+    """Puts a claimed row back the way it was after a failure that never reached
+    the provider. Deliberately a bulk UPDATE rather than `application.status =
+    ...`: the claim was a bulk UPDATE too, so the in-memory instance still holds
+    the pre-claim value and assigning it back would emit no write at all, leaving
+    the row stranded in SENDING/SAVING_DRAFT."""
+    await session.execute(
+        update(Application).where(Application.id == application_id).values(status=status)
+    )
+    await session.commit()
 
 
 async def _build_provider(application: Application, user: User, simulate_failure: bool = False):
@@ -89,16 +130,23 @@ async def send_application(
     if check.outcome == IdempotencyOutcome.IN_FLIGHT:
         raise HTTPException(status_code=409, detail="Send already in progress for this application")
 
-    if application.status not in (ApplicationStatus.READY_TO_SEND, ApplicationStatus.SEND_FAILED):
-        raise HTTPException(status_code=400, detail=f"Application must be READY_TO_SEND to send, current status is {application.status.value}")
+    if application.status not in CLAIMABLE_STATUSES:
+        raise HTTPException(status_code=409, detail=_not_claimable_reason(application, "send"))
+
+    # Captured before the claim, which commits SENDING over the top of it.
+    prior_status = application.status
 
     if not await claim_for_sending(session, application, payload.idempotencyKey):
-        recheck = await check_idempotency(session, application_id, payload.idempotencyKey)
-        return {"status": recheck.application.status.value}
-
-    await _log_event(session, application, ApplicationEventType.SEND_INITIATED)
+        # Lost a race with a concurrent request. Re-read so the refusal describes
+        # the state that actually won, not the one we were holding.
+        await session.refresh(application)
+        raise HTTPException(status_code=409, detail=_not_claimable_reason(application, "send"))
 
     try:
+        # Inside the try on purpose: everything after the claim is guarded, so no
+        # failure between here and the return can leave the row in SENDING.
+        await _log_event(session, application, ApplicationEventType.SEND_INITIATED)
+
         provider = await _build_provider(application, user, simulate_failure=payload.simulateFailure)
         attachment = await _load_attachment(session, application)
 
@@ -135,6 +183,14 @@ async def send_application(
         await _log_event(session, application, ApplicationEventType.SEND_FAILED, {"error": message})
         return {"status": "SEND_FAILED", "error": message, "retryable": True}
 
+    except Exception:
+        # Anything else — a 400 from _build_provider ("No email provider
+        # connected") or an unexpected error — must not leave the row stranded in
+        # SENDING, a state nothing can claim out of. Hand the previous status
+        # back and let the original error reach the caller unchanged.
+        await _release_claim(session, application.id, prior_status)
+        raise
+
 
 @router.post("/{application_id}/draft")
 async def save_application_as_draft(
@@ -153,9 +209,14 @@ async def save_application_as_draft(
     if check.outcome == IdempotencyOutcome.IN_FLIGHT:
         raise HTTPException(status_code=409, detail="Draft creation already in progress")
 
+    if application.status not in CLAIMABLE_STATUSES:
+        raise HTTPException(status_code=409, detail=_not_claimable_reason(application, "draft"))
+
+    prior_status = application.status
+
     if not await claim_for_drafting(session, application, payload.idempotencyKey):
-        recheck = await check_idempotency(session, application_id, payload.idempotencyKey)
-        return {"status": recheck.application.status.value}
+        await session.refresh(application)
+        raise HTTPException(status_code=409, detail=_not_claimable_reason(application, "draft"))
 
     try:
         provider = await _build_provider(application, user, simulate_failure=payload.simulateFailure)
@@ -189,3 +250,8 @@ async def save_application_as_draft(
         application.last_send_error = message
         await session.commit()
         return {"status": "DRAFT_CREATION_FAILED", "error": message, "retryable": True}
+
+    except Exception:
+        # See the send handler: never strand the row in SAVING_DRAFT.
+        await _release_claim(session, application.id, prior_status)
+        raise

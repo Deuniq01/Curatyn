@@ -15,6 +15,10 @@ type Application = {
   coverLetter: string | null;
   selectedCvLabel: string | null;
   lastSendError: string | null;
+  draftId: string | null;
+  // Names of the fields the backend still needs before this can be sent. Empty
+  // means complete. Reported by the server so the UI never restates the rule.
+  missingFields: string[];
 };
 
 export default function ApplicationReviewPage() {
@@ -83,6 +87,16 @@ export default function ApplicationReviewPage() {
     setShowConfirm(true);
   };
 
+  const handleMarkReviewed = async () => {
+    setError(null);
+    try {
+      await api.markReviewed(applicationId);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not mark this application as reviewed.");
+    }
+  };
+
   const confirmSend = async () => {
     setSending(true);
     setError(null);
@@ -112,6 +126,7 @@ export default function ApplicationReviewPage() {
         onRegenerateCoverLetter={handleRegenerateCoverLetter}
         onOpenSendConfirmation={openSendConfirmation}
         onSaveDraft={handleSaveDraft}
+        onMarkReviewed={handleMarkReviewed}
       />
       {showConfirm && (
         <SendConfirmationModal

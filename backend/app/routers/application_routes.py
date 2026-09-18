@@ -17,6 +17,7 @@ from app.ai_pipeline import generate_cover_letter_and_email, match_cv
 from app.auth import get_current_user, require_application_ownership
 from app.db import get_session
 from app.models import CV, Application, ApplicationEvent, ApplicationEventType, ApplicationStatus, JobDescription, User
+from app.readiness import is_ready_to_send, missing_send_fields
 from app.schemas import CreateApplicationRequest, UpdateApplicationRequest, UpdateCoverLetterRequest
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -57,19 +58,12 @@ def _serialize(application: Application) -> dict:
         "sentAt": application.sent_at,
         "draftId": application.draft_id,
         "lastSendError": application.last_send_error,
+        # Readiness is reported rather than inferred by the client, so the review
+        # screen never has to reimplement the rule to explain what's blocking.
+        "missingFields": missing_send_fields(application),
         "createdAt": application.created_at,
         "updatedAt": application.updated_at,
     }
-
-
-def _is_ready_to_send(application: Application) -> bool:
-    return bool(
-        application.recipient_email
-        and application.email_subject
-        and application.email_body
-        and application.selected_cv_id
-        and application.cover_letter
-    )
 
 
 @router.post("")
@@ -183,7 +177,7 @@ async def update_application(
         application.selected_cv_id = cv.id
 
     if application.status not in (ApplicationStatus.SENDING, ApplicationStatus.SAVING_DRAFT):
-        application.status = ApplicationStatus.READY_TO_SEND if _is_ready_to_send(application) else ApplicationStatus.USER_REVIEWING
+        application.status = ApplicationStatus.READY_TO_SEND if is_ready_to_send(application) else ApplicationStatus.USER_REVIEWING
 
     await session.commit()
     application = await _load_with_relations(session, application.id)

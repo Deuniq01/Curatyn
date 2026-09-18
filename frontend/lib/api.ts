@@ -93,6 +93,10 @@ export const api = {
   getApplication: (id: string) => request(`/api/applications/${id}`),
   updateApplication: (id: string, fields: Record<string, unknown>) =>
     request(`/api/applications/${id}`, { method: "PUT", body: JSON.stringify(fields) }),
+  // Clearing the review gate. An empty PUT is deliberate: the backend recomputes
+  // READY_TO_SEND / USER_REVIEWING on every update, and sends no field changes.
+  markReviewed: (id: string) =>
+    request(`/api/applications/${id}`, { method: "PUT", body: JSON.stringify({}) }),
   regenerateCoverLetter: (id: string) =>
     request(`/api/applications/${id}/cover-letter`, { method: "POST" }),
   editCoverLetter: (id: string, coverLetter: string) =>
