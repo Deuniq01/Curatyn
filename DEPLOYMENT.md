@@ -19,15 +19,13 @@ Work top to bottom. Each phase produces values you paste into a later phase, so 
 
 ---
 
-## Phase 0 — Push the cleaned repo (do this together)
+## Phase 0 — Push the cleaned repo
 
-Your first commit accidentally included secrets (the `.gitignore` was misspelled). I've fixed that locally: rotated the keys, un-tracked `backend/.env` and `backend/.venv/`, and staged everything. Before we push:
+Your first commit accidentally included secrets (the `.gitignore` was misspelled). That's now handled: the keys are rotated, `backend/.env` and `backend/.venv/` are un-tracked, and the Supabase database password is reset. The old values are still in git history but are no longer live, so nothing needs rotating again.
 
-1. **Reset your Supabase database password.** The old one is exposed in your git history, so it must be replaced with a **brand-new** value (not the same string). In the Supabase dashboard: **Project Settings → Database → Reset database password**. 📋 copy the new password. (You'll build the full connection string in Phase 1.)
+1. **Make the GitHub repo private** (recommended). On GitHub: **Settings → General → Danger Zone → Change repository visibility → Private**.
 
-2. **Make the GitHub repo private** (recommended). On GitHub: **Settings → General → Danger Zone → Change repository visibility → Private**. The old leaked key stays in history but is now worthless — we rotated it.
-
-3. I'll walk you through the `git push` when you're ready. Nothing in the current working tree contains a live secret.
+2. Push `main`. Nothing in the current working tree contains a live secret.
 
 ---
 
@@ -52,7 +50,7 @@ You need three things. All are in **Project Settings**.
 postgresql://postgres.abcdxyz:[YOUR-PASSWORD]@aws-0-xx.pooler.supabase.com:5432/postgres
 ```
 Build your `DATABASE_URL` from it:
-- Replace `[YOUR-PASSWORD]` with the password you reset in Phase 0.
+- Replace `[YOUR-PASSWORD]` with your new database password.
 - Change the scheme `postgresql://` → **`postgresql+asyncpg://`**
 
 📋 The final value (this is `DATABASE_URL`):
