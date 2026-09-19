@@ -1,6 +1,7 @@
 """
-Gmail implementation of EmailProvider. Requires the gmail.send scope (not
-just gmail.compose) for send_email() to work — PRD Section 8 and 16.
+Gmail implementation of EmailProvider. Needs both gmail.send (to deliver mail)
+and gmail.compose (to build a draft) — see GOOGLE_SCOPES in
+app/routers/auth_routes.py. PRD Section 8 and 16.
 """
 import base64
 from email.mime.application import MIMEApplication

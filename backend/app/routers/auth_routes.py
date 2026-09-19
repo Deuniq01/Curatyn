@@ -73,7 +73,18 @@ _PROVIDERS: dict[str, EmailProviderType] = {
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
-GOOGLE_SCOPES = "openid email https://www.googleapis.com/auth/gmail.send"
+# gmail.send covers send_email(); gmail.compose is what CreateDraft needs. Asking
+# for only the first is why "Save as Draft" came back 403
+# ACCESS_TOKEN_SCOPE_INSUFFICIENT: the narrower scope is sufficient to send but
+# not to build a draft. Both are requested because the app does both.
+#
+# Changing this only affects new consents — an existing refresh token still
+# carries the scopes it was granted, so a connected account has to reconnect.
+GOOGLE_SCOPES = (
+    "openid email "
+    "https://www.googleapis.com/auth/gmail.send "
+    "https://www.googleapis.com/auth/gmail.compose"
+)
 
 MICROSOFT_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
 MICROSOFT_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
