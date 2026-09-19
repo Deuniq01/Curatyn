@@ -29,11 +29,14 @@ import {
  *  ├─ CoverLetterPanel            — editable textarea + regenerate action
  *  ├─ FailureBanner               — SEND_FAILED and DRAFT_CREATION_FAILED
  *  └─ ActionBar
+ *      ├─ Mark as reviewed button — rendered only while the review gate is up
  *      ├─ Save as Draft button
  *      └─ Send Application button → opens SendConfirmationModal
  *
- * Both action buttons are disabled unless the status is one the server will
- * accept, so a gated state is shown rather than discovered by clicking.
+ * The bar shows exactly one set of actions: Mark as reviewed while the gate is
+ * up, the two send actions once it is cleared, nothing at all in a terminal
+ * state. A button the server would refuse is never rendered, so no action is
+ * discovered by clicking and failing.
  *
  * SendConfirmationModal (separate file below in this same document)
  */
@@ -115,10 +118,12 @@ function FailureBanner({ title, message, retryLabel, onRetry }) {
 /**
  * The review gate, made visible. A generated application stops at
  * READY_FOR_REVIEW and the server will not send or draft from there — which used
- * to be indistinguishable from a broken button. This states the gate and
- * provides the one action that clears it.
+ * to be indistinguishable from a broken button. This states the gate. The action
+ * that clears it sits in the ActionBar, where the send button will appear once
+ * it is cleared, so the gate reads as a step in the same place rather than a
+ * detour somewhere else on the page.
  */
-function ReviewGateNotice({ application, onMarkReviewed }) {
+function ReviewGateNotice({ application }) {
   if (application.status === "READY_FOR_REVIEW") {
     return (
       <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4">
@@ -127,17 +132,9 @@ function ReviewGateNotice({ application, onMarkReviewed }) {
           <div className="flex-1">
             <p className="text-sm font-medium text-amber-900">This application still needs your review.</p>
             <p className="mt-1 text-sm text-amber-800">
-              Everything below was generated for you. Read it over, then mark it as reviewed to unlock
-              sending and drafts.
+              Everything below was generated for you. Read it over, then mark it as reviewed below to
+              unlock sending and drafts.
             </p>
-            <button
-              type="button"
-              onClick={onMarkReviewed}
-              className="mt-3 flex items-center gap-2 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
-            >
-              <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              Mark as reviewed
-            </button>
           </div>
         </div>
       </div>
@@ -161,8 +158,8 @@ function ReviewGateNotice({ application, onMarkReviewed }) {
 
 // Mirrors CLAIMABLE_STATUSES in backend/app/idempotency.py — the states the
 // server will accept a send or a draft from. Anything outside this set has an
-// action that would be refused, so the buttons are disabled rather than left to
-// fail on click.
+// action that would be refused, so the action bar renders nothing for it rather
+// than a button that fails on click.
 const SENDABLE_STATUSES = new Set([
   "READY_TO_SEND",
   "SEND_FAILED",
@@ -170,9 +167,17 @@ const SENDABLE_STATUSES = new Set([
   "DRAFT_CREATION_FAILED",
 ]);
 
+// USER_REVIEWING is deliberately excluded from the button below. It means fields
+// are missing, and the empty PUT that clears the gate supplies none of them — so
+// the button there would do nothing at all, which is the exact failure this
+// screen was rebuilt to remove. Its notice names the missing fields instead, and
+// editing a field is what moves the application on.
+const CLEARABLE_GATE_STATUS = "READY_FOR_REVIEW";
+
 export default function FinalReviewScreen({ application, onSaveField, onRegenerateCoverLetter, onOpenSendConfirmation, onSaveDraft, onMarkReviewed }) {
   const [regenerating, setRegenerating] = useState(false);
   const canAct = SENDABLE_STATUSES.has(application.status);
+  const canMarkReviewed = application.status === CLEARABLE_GATE_STATUS;
 
   const handleRegenerate = async () => {
     setRegenerating(true);
@@ -187,7 +192,7 @@ export default function FinalReviewScreen({ application, onSaveField, onRegenera
     <div className="mx-auto max-w-xl rounded-lg border border-neutral-200 bg-white p-6">
       <h1 className="mb-4 text-lg font-semibold text-neutral-900">Review Application</h1>
 
-      <ReviewGateNotice application={application} onMarkReviewed={onMarkReviewed} />
+      <ReviewGateNotice application={application} />
 
       {application.status === "SEND_FAILED" && (
         <FailureBanner
@@ -244,24 +249,36 @@ export default function FinalReviewScreen({ application, onSaveField, onRegenera
       />
 
       <div className="mt-4 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onSaveDraft}
-          disabled={!canAct}
-          className="flex items-center gap-2 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-        >
-          <Save className="h-4 w-4" aria-hidden="true" />
-          Save as Draft
-        </button>
-        <button
-          type="button"
-          onClick={onOpenSendConfirmation}
-          disabled={!canAct}
-          className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-neutral-900"
-        >
-          <Send className="h-4 w-4" aria-hidden="true" />
-          Send Application
-        </button>
+        {canMarkReviewed && (
+          <button
+            type="button"
+            onClick={onMarkReviewed}
+            className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            <CheckCircle className="h-4 w-4" aria-hidden="true" />
+            Mark as reviewed
+          </button>
+        )}
+        {canAct && (
+          <>
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              className="flex items-center gap-2 rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              <Save className="h-4 w-4" aria-hidden="true" />
+              Save as Draft
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSendConfirmation}
+              className="flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              Send Application
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
