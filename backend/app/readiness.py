@@ -9,10 +9,13 @@ a field added to the review screen can't be quietly forgotten by the check.
 from app.models import Application
 
 # Attribute -> how the field is named to the user in the review screen.
+#
+# email_body is deliberately absent. The cover letter is the email body — see
+# send_routes.py — so cover_letter already covers it, and requiring the column
+# separately would block a send whose actual content is complete.
 _SEND_FIELD_LABELS: dict[str, str] = {
     "recipient_email": "recipient email",
     "email_subject": "subject",
-    "email_body": "email body",
     "selected_cv_id": "CV attachment",
     "cover_letter": "cover letter",
 }

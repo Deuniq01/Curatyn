@@ -117,16 +117,18 @@ async def match_cv(session: AsyncSession, user_id: str, job_description_id: str)
 COVER_LETTER_SYSTEM_PROMPT = """You are a career writing assistant for Curatyn.
 
 Given a structured job description and a candidate's CV text, write a
-concise, specific cover letter and a short application email body. Return
+concise, specific cover letter and an email subject line. Return
 ONLY valid JSON, no markdown fences, matching this exact shape:
 
 {
   "coverLetter": string,
-  "emailSubject": string,
-  "emailBody": string
+  "emailSubject": string
 }
 
 Rules:
+- The cover letter is sent as the body of the application email, so it must
+  stand on its own as a complete message: open with a greeting and close with
+  a sign-off. There is no separate covering note.
 - The cover letter must be 250 to 400 words, three to four paragraphs, and
   must reference at least two concrete details from the job description and
   at least one concrete detail from the candidate's CV. Never invent
@@ -134,9 +136,7 @@ Rules:
 - Match the tone described in "toneHints". Default to professional and
   warm if no hint is given.
 - emailSubject should follow the pattern "Application for {roleTitle}".
-- emailBody is a short covering note distinct from the full cover letter,
-  two to four sentences, inviting the reader to review the attachments.
-- End emailBody with "Best regards," on its own line; never invent a name.
+- Never invent a name for the sign-off.
 """
 
 
@@ -144,11 +144,12 @@ async def generate_cover_letter_and_email(
     structured_jd: dict,
     cv_raw_text: str,
     existing_subject: str | None,
-    existing_body: str | None,
 ) -> dict:
-    """existing_subject/body let the caller keep a user's manual edit instead
-    of the freshly generated value — see app/routers/application_routes.py,
-    which is the actual enforcement point for FR-REVIEW-004."""
+    """existing_subject lets the caller keep a user's manual edit instead of the
+    freshly generated value — see app/routers/application_routes.py, which is the
+    actual enforcement point for FR-REVIEW-004. There is no equivalent for the
+    body: the body is the cover letter, and regenerating the cover letter is an
+    explicit request to replace it."""
     user_prompt = json.dumps({"jobDescription": structured_jd, "candidateCvText": cv_raw_text[:6000]})
     completion = await ai_client.complete(system=COVER_LETTER_SYSTEM_PROMPT, user=user_prompt)
     generated = json.loads(completion)
@@ -156,5 +157,4 @@ async def generate_cover_letter_and_email(
     return {
         "coverLetter": generated["coverLetter"],
         "emailSubject": existing_subject or generated["emailSubject"],
-        "emailBody": existing_body or generated["emailBody"],
     }

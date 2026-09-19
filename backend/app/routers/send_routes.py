@@ -36,6 +36,17 @@ from app.token_refresh import refresh_access_token
 router = APIRouter(prefix="/api/applications", tags=["send"])
 
 
+def _email_body(application: Application) -> str | None:
+    """The cover letter *is* the email body.
+
+    The pipeline used to generate a second, shorter text for the email — a 2-4
+    sentence covering note — which the review screen never displayed. The screen
+    showed the cover letter, so the mail that went out was never the text the
+    user had read and approved. Reading the one field the screen edits makes the
+    two impossible to disagree."""
+    return application.cover_letter
+
+
 def _not_claimable_reason(application: Application, verb: str) -> str:
     """Why this application can't be claimed to `verb` right now, phrased so the
     review screen can show it verbatim. A refusal the user can't act on is the
@@ -153,7 +164,7 @@ async def send_application(
         result = await provider.send_email(
             recipient=application.recipient_email,
             subject=application.email_subject,
-            body=application.email_body,
+            body=_email_body(application),
             attachment=attachment,
         )
 
@@ -225,7 +236,7 @@ async def save_application_as_draft(
         result = await provider.create_draft(
             recipient=application.recipient_email,
             subject=application.email_subject,
-            body=application.email_body,
+            body=_email_body(application),
             attachment=attachment,
         )
 

@@ -25,9 +25,12 @@ class CreateApplicationRequest(BaseModel):
 
 
 class UpdateApplicationRequest(BaseModel):
+    # No emailBody. The cover letter is the email body, and it has its own
+    # endpoint (UpdateCoverLetterRequest). Accepting it here would let a client
+    # set a body that disagrees with the letter the review screen shows — the
+    # exact mismatch this schema no longer permits.
     recipientEmail: str | None = None
     emailSubject: str | None = None
-    emailBody: str | None = None
     selectedCvId: str | None = None
 
 

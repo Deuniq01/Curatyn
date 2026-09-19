@@ -236,14 +236,8 @@ def _mock_cover_letter(user_payload_json: str) -> str:
     )
 
     email_subject = f"Application for {role}" if role != "this role" else "Job Application"
-    email_body = (
-        f"Hello,\n\nPlease find attached my CV and cover letter for {role}. "
-        f"I would appreciate the opportunity to discuss my application further.\n\n"
-        f"Best regards,"
-    )
 
     return json.dumps({
         "coverLetter": cover_letter,
         "emailSubject": email_subject,
-        "emailBody": email_body,
     })

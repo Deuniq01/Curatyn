@@ -40,6 +40,17 @@ async def _log_event(session: AsyncSession, application: Application, event_type
     await session.commit()
 
 
+def _set_cover_letter(application: Application, text: str) -> None:
+    """The cover letter is the email body — send_routes._email_body reads
+    cover_letter when composing, and the review screen edits the same field.
+
+    email_body is written alongside it so a stored row never describes an email
+    whose text differs from the letter the user approved. It is a mirror only:
+    cover_letter is the value everything actually reads."""
+    application.cover_letter = text
+    application.email_body = text
+
+
 def _serialize(application: Application) -> dict:
     return {
         "id": application.id,
@@ -48,7 +59,7 @@ def _serialize(application: Application) -> dict:
         "roleTitle": application.job_description.role_title if application.job_description else None,
         "recipientEmail": application.recipient_email,
         "emailSubject": application.email_subject,
-        "emailBody": application.email_body,
+        "emailBody": application.cover_letter,
         "coverLetter": application.cover_letter,
         "matchScore": application.match_score,
         "selectedCvId": application.selected_cv_id,
@@ -110,11 +121,9 @@ async def create_application(
         structured_jd=structured_jd,
         cv_raw_text=cv.raw_text,
         existing_subject=None,
-        existing_body=None,
     )
-    application.cover_letter = generated["coverLetter"]
+    _set_cover_letter(application, generated["coverLetter"])
     application.email_subject = generated["emailSubject"]
-    application.email_body = generated["emailBody"]
     application.recipient_email = structured_jd.get("applicationEmail")
     application.status = ApplicationStatus.READY_FOR_REVIEW
     await session.commit()
@@ -167,8 +176,6 @@ async def update_application(
         application.recipient_email = updates["recipientEmail"]
     if "emailSubject" in updates:
         application.email_subject = updates["emailSubject"]
-    if "emailBody" in updates:
-        application.email_body = updates["emailBody"]
     if "selectedCvId" in updates:
         cv_result = await session.execute(select(CV).where(CV.id == updates["selectedCvId"], CV.user_id == user.id))
         cv = cv_result.scalar_one_or_none()
@@ -200,11 +207,9 @@ async def regenerate_cover_letter(
         structured_jd=application.job_description.structured_json or {},
         cv_raw_text=application.selected_cv.raw_text,
         existing_subject=application.email_subject,
-        existing_body=application.email_body,
     )
-    application.cover_letter = generated["coverLetter"]
+    _set_cover_letter(application, generated["coverLetter"])
     application.email_subject = generated["emailSubject"]  # unchanged if user already had a value — see ai_pipeline.py
-    application.email_body = generated["emailBody"]
     await session.commit()
     await _log_event(session, application, ApplicationEventType.COVER_LETTER_GENERATED)
     return _serialize(application)
@@ -218,7 +223,7 @@ async def edit_cover_letter(
     session: AsyncSession = Depends(get_session),
 ):
     application = await require_application_ownership(session, application_id, user)
-    application.cover_letter = payload.coverLetter
+    _set_cover_letter(application, payload.coverLetter)
     await session.commit()
     application = await _load_with_relations(session, application_id)
     return _serialize(application)
